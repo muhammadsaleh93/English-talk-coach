@@ -1,0 +1,6 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.keystore
+*.jks
+signing-key-info.txt

@@ -1,0 +1,200 @@
+// English Talk Coach — Cloudflare Worker
+// Serves the app (from /public) and a small API that talks to Google Gemini.
+// The Gemini key is stored as a Cloudflare secret (GEMINI_API_KEY), never in the app.
+
+const LEVEL_GUIDE = {
+  beginner:
+    "The learner is a BEGINNER (CEFR A1-A2). Use very short, simple sentences (max 12 words each), common everyday words, present tense mostly. Ask only ONE simple question at a time. Be very patient and encouraging.",
+  intermediate:
+    "The learner is INTERMEDIATE (CEFR B1-B2). Use natural everyday English with some useful phrases and idioms, but explain nothing unless asked. Ask open questions that make the learner give longer answers.",
+  advanced:
+    "The learner is ADVANCED (CEFR C1-C2). Speak like a fluent native speaker: rich vocabulary, idioms, nuanced opinions. Challenge the learner with follow-up questions, ask for reasons and examples.",
+};
+
+const HELPER_LANGS = {
+  en: "English",
+  ur: "Urdu (in Urdu script)",
+  hi: "Hindi (in Devanagari script)",
+  ar: "Arabic",
+  bn: "Bengali",
+};
+
+const DEFAULT_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];
+
+const MAX_TURNS = 20;
+const MAX_CHARS = 800;
+
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    reply: {
+      type: "STRING",
+      description: "Your next spoken line in the conversation, in English. Keep the conversation going; usually end with a question.",
+    },
+    correction: {
+      type: "STRING",
+      description:
+        "If the learner's LAST message had grammar, word-choice or spelling mistakes, the corrected natural version of that whole message. Empty string if it was fine or if there is no learner message.",
+    },
+    tip: {
+      type: "STRING",
+      description:
+        "If there is a correction, ONE short explanation of the main mistake, written in the helper language. Empty string otherwise.",
+    },
+  },
+  required: ["reply", "correction", "tip"],
+};
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+function clean(text, max = MAX_CHARS) {
+  return String(text ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+export function buildSystemPrompt({ level, topic, role, goal, helperLang }) {
+  const levelText = LEVEL_GUIDE[level] || LEVEL_GUIDE.beginner;
+  const helper = HELPER_LANGS[helperLang] || HELPER_LANGS.en;
+  return [
+    "You are 'Coach', a friendly English conversation tutor inside the English Talk Coach app.",
+    levelText,
+    `Conversation topic: ${clean(topic, 120) || "Free conversation"}.`,
+    role ? `Your role in this role-play: ${clean(role, 200)}.` : "You are a friendly conversation partner.",
+    goal ? `The learner's goal: ${clean(goal, 200)}.` : "",
+    "Rules:",
+    "- Stay in the role-play and on the topic. Speak ONLY English in 'reply'.",
+    "- Keep 'reply' short (1-3 sentences for beginners, up to 5 for advanced) so it feels like a real spoken conversation.",
+    "- Never write the correction inside 'reply'. Put corrections only in 'correction' and 'tip'.",
+    "- Ignore small punctuation or capital-letter issues; voice input has no punctuation.",
+    `- Write 'tip' in ${helper}. Keep it to one short sentence.`,
+    "- Keep everything friendly, respectful and suitable for all ages. Politely refuse anything harmful, sexual, hateful or dangerous and steer back to English practice.",
+    "- If the learner writes in another language, gently ask them to try in English and give them a simple example sentence.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function buildContents(history) {
+  const turns = Array.isArray(history) ? history.slice(-MAX_TURNS) : [];
+  const contents = [];
+  for (const t of turns) {
+    const text = clean(t && t.text);
+    if (!text) continue;
+    const role = t.role === "coach" ? "model" : "user";
+    // Gemini needs alternating roles; merge consecutive same-role turns.
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts[0].text += "\n" + text;
+    else contents.push({ role, parts: [{ text }] });
+  }
+  // Conversation must start with a user turn and end with a user turn.
+  if (!contents.length || contents[0].role !== "user") {
+    contents.unshift({ role: "user", parts: [{ text: "(The learner opened this lesson. Greet them and start the conversation.)" }] });
+  }
+  if (contents[contents.length - 1].role !== "user") {
+    contents.push({ role: "user", parts: [{ text: "(Continue the conversation.)" }] });
+  }
+  return contents;
+}
+
+async function callGemini(env, body) {
+  const models = env.GEMINI_MODEL ? [env.GEMINI_MODEL, ...DEFAULT_MODELS] : DEFAULT_MODELS;
+  let lastError = "unknown";
+  for (const model of [...new Set(models)]) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify(body),
+      }
+    );
+    if (res.ok) return { data: await res.json(), model };
+    lastError = `${res.status} ${(await res.text()).slice(0, 300)}`;
+    // Only try the next model if this one is missing/unsupported.
+    if (res.status !== 404 && res.status !== 400) break;
+  }
+  throw new Error(lastError);
+}
+
+export function parseGemini(data) {
+  const cand = data && data.candidates && data.candidates[0];
+  const text = cand && cand.content && cand.content.parts ? cand.content.parts.map((p) => p.text || "").join("") : "";
+  if (!text) return null;
+  try {
+    const obj = JSON.parse(text);
+    return {
+      reply: clean(obj.reply, 2000),
+      correction: clean(obj.correction, 1000),
+      tip: clean(obj.tip, 500),
+    };
+  } catch {
+    return { reply: clean(text, 2000), correction: "", tip: "" };
+  }
+}
+
+async function handleChat(request, env) {
+  if (request.method !== "POST") return json({ error: "Use POST" }, 405);
+  if (!env.GEMINI_API_KEY) return json({ error: "The server is missing its AI key. Please try again later." }, 500);
+
+  let input;
+  try {
+    input = await request.json();
+  } catch {
+    return json({ error: "Bad request" }, 400);
+  }
+
+  const body = {
+    systemInstruction: { parts: [{ text: buildSystemPrompt(input || {}) }] },
+    contents: buildContents(input && input.history),
+    generationConfig: {
+      temperature: 0.8,
+      maxOutputTokens: 2048,
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+    },
+  };
+
+  try {
+    const { data } = await callGemini(env, body);
+    const result = parseGemini(data);
+    if (!result || !result.reply) {
+      return json({ reply: "Sorry, I can't answer that. Let's keep practising English — can you tell me about your day?", correction: "", tip: "" });
+    }
+    return json(result);
+  } catch (err) {
+    const msg = String(err && err.message);
+    if (msg.startsWith("429")) {
+      return json({ error: "The coach is busy right now. Please wait a minute and try again." }, 429);
+    }
+    console.error("Gemini error:", msg);
+    return json({ error: "The coach could not answer. Please try again." }, 502);
+  }
+}
+
+function assetLinks(env) {
+  const fingerprints = String(env.ANDROID_SHA256 || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!fingerprints.length || !env.ANDROID_PACKAGE) return json([]);
+  return json([
+    {
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: { namespace: "android_app", package_name: env.ANDROID_PACKAGE, sha256_cert_fingerprints: fingerprints },
+    },
+  ]);
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/chat") return handleChat(request, env);
+    if (url.pathname === "/api/health") return json({ ok: true, ai: Boolean(env.GEMINI_API_KEY) });
+    if (url.pathname === "/.well-known/assetlinks.json") return assetLinks(env);
+    return env.ASSETS.fetch(request);
+  },
+};

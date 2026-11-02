@@ -1,0 +1,50 @@
+name: Deploy app to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        id: check
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          missing=""
+          [ -z "$CF_TOKEN" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$CF_ACCOUNT" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -z "$GEMINI" ] && missing="$missing GEMINI_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::warning::Not deployed yet. Add these GitHub secrets first:$missing (see SETUP.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test worker
+        run: node --test tests/*.test.mjs
+
+      - name: Deploy
+        if: steps.check.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "latest"
+          command: deploy
+          secrets: |
+            GEMINI_API_KEY
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

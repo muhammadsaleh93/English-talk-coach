@@ -1,0 +1,12 @@
+{
+  "name": "english-talk-coach",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "English conversation practice app with an AI coach (Cloudflare Worker + Gemini).",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy"
+  }
+}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>English Talk Coach</title>
+  <meta name="description" content="Practise speaking English with a friendly AI coach — beginner to advanced.">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="backBtn" class="icon-btn hidden" aria-label="Back">←</button>
+    <h1 id="title">English Talk Coach</h1>
+    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙️</button>
+  </header>
+
+  <!-- HOME -->
+  <main id="homeView" class="view">
+    <section class="hero">
+      <p class="hello">Speak English with confidence 🎯</p>
+      <p class="sub">Choose your level and a topic. Your AI coach talks with you and gently corrects your mistakes.</p>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <nav class="levels" role="tablist">
+      <button class="level-tab" data-level="beginner" role="tab">🌱 Beginner</button>
+      <button class="level-tab" data-level="intermediate" role="tab">🌿 Intermediate</button>
+      <button class="level-tab" data-level="advanced" role="tab">🌳 Advanced</button>
+    </nav>
+
+    <div id="topicGrid" class="topic-grid"></div>
+  </main>
+
+  <!-- CHAT -->
+  <main id="chatView" class="view hidden">
+    <div class="chat-goal" id="chatGoal"></div>
+    <div id="messages" class="messages" aria-live="polite"></div>
+    <form id="composer" class="composer">
+      <button type="button" id="micBtn" class="mic-btn" aria-label="Speak">🎤</button>
+      <input id="input" type="text" autocomplete="off" placeholder="Type or tap 🎤 to speak…" maxlength="600">
+      <button type="submit" id="sendBtn" class="send-btn" aria-label="Send">➤</button>
+    </form>
+  </main>
+
+  <!-- SETTINGS -->
+  <main id="settingsView" class="view hidden">
+    <section class="card">
+      <h2>Settings</h2>
+      <label class="row">
+        <span>Explain my mistakes in</span>
+        <select id="helperLang">
+          <option value="en">English</option>
+          <option value="ur">اردو Urdu</option>
+          <option value="hi">हिन्दी Hindi</option>
+          <option value="ar">العربية Arabic</option>
+          <option value="bn">বাংলা Bengali</option>
+        </select>
+      </label>
+      <label class="row">
+        <span>Read coach replies aloud</span>
+        <input id="autoSpeak" type="checkbox">
+      </label>
+      <label class="row">
+        <span>Voice speed</span>
+        <input id="rate" type="range" min="0.6" max="1.2" step="0.1">
+      </label>
+      <button id="resetBtn" class="ghost-btn">Reset my progress</button>
+    </section>
+    <section class="card small">
+      <p>English Talk Coach uses AI. AI answers can sometimes be wrong. Tap <b>⚑ Report</b> under any coach message to tell us about a bad answer.</p>
+      <p><a href="/privacy.html">Privacy policy</a></p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/config.js"></script>
+  <script src="/topics.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

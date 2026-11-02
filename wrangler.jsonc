@@ -1,0 +1,18 @@
+{
+  // Cloudflare Worker settings for English Talk Coach.
+  "name": "english-talk-coach",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/.well-known/*"]
+  },
+  "vars": {
+    // Android app details for the Play Store (Trusted Web Activity).
+    "ANDROID_PACKAGE": "com.muhammadsaleh.englishtalkcoach",
+    // Paste the SHA-256 fingerprint(s) from PWABuilder / Play Console here, separated by commas.
+    "ANDROID_SHA256": ""
+    // Optional: "GEMINI_MODEL": "gemini-2.5-flash"
+  }
+}

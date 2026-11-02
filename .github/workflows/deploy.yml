@@ -48,3 +48,15 @@ jobs:
             GEMINI_API_KEY
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Smoke test the live app
+        if: steps.check.outputs.ready == 'true'
+        continue-on-error: true
+        run: |
+          URL="https://english-talk-coach.muhammadsalehpk90.workers.dev"
+          sleep 10
+          echo "== health check =="
+          curl -sS -m 60 "$URL/api/health?check=1"; echo
+          echo "== chat test =="
+          curl -sS -m 60 -X POST "$URL/api/chat" -H "content-type: application/json" \
+            -d '{"level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"Hi! What is your name?"},{"role":"me","text":"my name ali i from pakistan"}]}'; echo

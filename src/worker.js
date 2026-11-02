@@ -171,8 +171,32 @@ async function handleChat(request, env) {
       return json({ error: "The coach is busy right now. Please wait a minute and try again." }, 429);
     }
     console.error("Gemini error:", msg);
-    return json({ error: "The coach could not answer. Please try again." }, 502);
+    return json({ error: "The coach could not answer. Please try again.", detail: msg.slice(0, 300) }, 502);
   }
+}
+
+// Diagnostic: /api/health?check shows whether Gemini answers (never shows the key).
+async function health(env, check) {
+  const out = { ok: true, ai: Boolean(env.GEMINI_API_KEY) };
+  if (!check || !env.GEMINI_API_KEY) return json(out);
+  const models = env.GEMINI_MODEL ? [env.GEMINI_MODEL, ...DEFAULT_MODELS] : DEFAULT_MODELS;
+  out.models = {};
+  for (const model of [...new Set(models)]) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Say hi" }] }], generationConfig: { maxOutputTokens: 256 } }),
+        }
+      );
+      out.models[model] = res.ok ? "OK" : `${res.status} ${(await res.text()).slice(0, 300)}`;
+    } catch (e) {
+      out.models[model] = "fetch failed: " + String(e && e.message);
+    }
+  }
+  return json(out);
 }
 
 function assetLinks(env) {
@@ -193,7 +217,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/chat") return handleChat(request, env);
-    if (url.pathname === "/api/health") return json({ ok: true, ai: Boolean(env.GEMINI_API_KEY) });
+    if (url.pathname === "/api/health") return health(env, url.searchParams.has("check"));
     if (url.pathname === "/.well-known/assetlinks.json") return assetLinks(env);
     return env.ASSETS.fetch(request);
   },

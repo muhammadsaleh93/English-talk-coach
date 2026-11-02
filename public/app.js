@@ -250,7 +250,7 @@
     setBusy(true);
     try {
       const res = await fetch(CFG.API_URL, {
-        signal: AbortSignal.timeout ? AbortSignal.timeout(45000) : undefined,
+        signal: AbortSignal.timeout ? AbortSignal.timeout(50000) : undefined,
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

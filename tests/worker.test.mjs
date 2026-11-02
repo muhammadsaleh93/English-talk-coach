@@ -43,7 +43,7 @@ test("chat endpoint calls Gemini and returns reply", async () => {
     assert.equal(res.status, 200);
     assert.equal((await res.json()).reply, "Hello!");
     assert.equal(called.key, "k");
-    assert.match(called.url, /gemini-flash-latest:generateContent/);
+    assert.match(called.url, /gemini-3\.8-flash:generateContent/);
     assert.equal(called.body.generationConfig.responseMimeType, "application/json");
   } finally {
     globalThis.fetch = realFetch;
@@ -62,7 +62,7 @@ test("falls back to next model when first is not found", async () => {
     const req = new Request("https://x.dev/api/chat", { method: "POST", body: "{}" });
     const res = await worker.fetch(req, { GEMINI_API_KEY: "k", ASSETS: assets });
     assert.equal(res.status, 200);
-    assert.match(urls[1], /gemini-2\.5-flash/);
+    assert.match(urls[1], /gemini-3\.5-flash-lite/);
   } finally {
     globalThis.fetch = realFetch;
   }

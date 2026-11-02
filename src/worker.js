@@ -19,7 +19,7 @@ const HELPER_LANGS = {
   bn: "Bengali",
 };
 
-const DEFAULT_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];
+const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
 
 const MAX_TURNS = 20;
 const MAX_CHARS = 800;
@@ -104,19 +104,22 @@ async function callGemini(env, body) {
   const models = env.GEMINI_MODEL ? [env.GEMINI_MODEL, ...DEFAULT_MODELS] : DEFAULT_MODELS;
   let lastError = "unknown";
   for (const model of [...new Set(models)]) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
+    let res;
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(25000),
-      }
-    );
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch (e) {
+      lastError = "timeout " + model + ": " + String(e && e.message);
+      continue; // too slow: try the next model
+    }
     if (res.ok) return { data: await res.json(), model };
     lastError = `${res.status} ${(await res.text()).slice(0, 300)}`;
-    // Only try the next model if this one is missing/unsupported.
-    if (res.status !== 404 && res.status !== 400) break;
+    // Only try the next model if this one is missing/unsupported/overloaded.
+    if (![400, 404, 500, 503].includes(res.status)) break;
   }
   throw new Error(lastError);
 }
@@ -168,7 +171,7 @@ async function handleChat(request, env) {
     return json(result);
   } catch (err) {
     const msg = String(err && err.message);
-    if (/abort|timeout/i.test(msg)) {
+    if (/^timeout/i.test(msg)) {
       return json({ error: "The coach took too long to answer. Please try again.", detail: msg.slice(0, 200) }, 504);
     }
     if (msg.startsWith("429")) {

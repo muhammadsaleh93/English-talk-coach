@@ -250,6 +250,7 @@
     setBusy(true);
     try {
       const res = await fetch(CFG.API_URL, {
+        signal: AbortSignal.timeout ? AbortSignal.timeout(45000) : undefined,
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -265,7 +266,7 @@
       if (conv !== current) return; // user left this chat
       setBusy(false);
       if (!res.ok || data.error) {
-        showError((data && data.error) || "Something went wrong.");
+        showError(((data && data.error) || "Something went wrong (code " + res.status + ").") + (data && data.detail ? "\n[" + data.detail.slice(0, 160) + "]" : ""));
         return;
       }
       // Attach the correction to the learner's last message.
@@ -282,7 +283,7 @@
     } catch {
       if (conv !== current) return;
       setBusy(false);
-      showError(navigator.onLine ? "Could not reach the coach." : "You are offline. Please connect to the internet.");
+      showError(navigator.onLine ? "The coach did not answer in time. Please try again." : "You are offline. Please connect to the internet.");
     }
   }
 

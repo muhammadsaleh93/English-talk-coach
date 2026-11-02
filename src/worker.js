@@ -110,6 +110,7 @@ async function callGemini(env, body) {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(25000),
       }
     );
     if (res.ok) return { data: await res.json(), model };
@@ -167,6 +168,9 @@ async function handleChat(request, env) {
     return json(result);
   } catch (err) {
     const msg = String(err && err.message);
+    if (/abort|timeout/i.test(msg)) {
+      return json({ error: "The coach took too long to answer. Please try again.", detail: msg.slice(0, 200) }, 504);
+    }
     if (msg.startsWith("429")) {
       return json({ error: "The coach is busy right now. Please wait a minute and try again." }, 429);
     }
@@ -189,6 +193,7 @@ async function health(env, check) {
           method: "POST",
           headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
           body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Say hi" }] }], generationConfig: { maxOutputTokens: 256 } }),
+          signal: AbortSignal.timeout(20000),
         }
       );
       out.models[model] = res.ok ? "OK" : `${res.status} ${(await res.text()).slice(0, 300)}`;

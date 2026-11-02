@@ -55,8 +55,12 @@ jobs:
         run: |
           URL="https://english-talk-coach.muhammadsalehpk90.workers.dev"
           sleep 10
-          echo "== health check =="
-          curl -sS -m 60 "$URL/api/health?check=1"; echo
+          echo "== home page =="
+          curl -sS -m 30 -o /dev/null -w "%{http_code} %{time_total}s\n" "$URL/" || true
+          echo "== health =="
+          curl -sS -m 30 -w " (%{time_total}s)\n" "$URL/api/health" || true
+          echo "== gemini check =="
+          curl -sS -m 90 -w " (%{time_total}s)\n" "$URL/api/health?check=1" || true
           echo "== chat test =="
-          curl -sS -m 60 -X POST "$URL/api/chat" -H "content-type: application/json" \
-            -d '{"level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"Hi! What is your name?"},{"role":"me","text":"my name ali i from pakistan"}]}'; echo
+          curl -sS -m 90 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" \
+            -d '{"level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"Hi! What is your name?"},{"role":"me","text":"my name ali i from pakistan"}]}' || true

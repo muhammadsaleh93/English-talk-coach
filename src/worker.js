@@ -19,7 +19,7 @@ const HELPER_LANGS = {
   bn: "Bengali",
 };
 
-const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+const DEFAULT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 
 const MAX_TURNS = 20;
 const MAX_CHARS = 800;

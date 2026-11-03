@@ -25,8 +25,8 @@ test("system prompt uses level and helper language", () => {
 });
 
 test("parses Gemini JSON reply", () => {
-  const r = parseGemini({ candidates: [{ content: { parts: [{ text: '{"reply":"Nice!","correction":"My name is Ali.","tip":"Use is."}' }] } }] });
-  assert.deepEqual(r, { reply: "Nice!", correction: "My name is Ali.", tip: "Use is." });
+  const r = parseGemini({ candidates: [{ content: { parts: [{ text: '{"reply":"Nice!","correction":"My name is Ali.","tip":"Use is.","hints":["I am from Lahore.","I live in Jubail."]}' }] } }] });
+  assert.deepEqual(r, { reply: "Nice!", correction: "My name is Ali.", tip: "Use is.", hints: ["I am from Lahore.", "I live in Jubail."] });
   assert.equal(parseGemini({ candidates: [] }), null);
 });
 

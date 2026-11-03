@@ -41,8 +41,13 @@ const RESPONSE_SCHEMA = {
       description:
         "If there is a correction, ONE short explanation of the main mistake, written in the helper language. Empty string otherwise.",
     },
+    hints: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "2 or 3 short example answers (in English) the learner could say next to your reply, at the learner's level. Max 10 words each.",
+    },
   },
-  required: ["reply", "correction", "tip"],
+  required: ["reply", "correction", "tip", "hints"],
 };
 
 function json(data, status = 200) {
@@ -134,9 +139,10 @@ export function parseGemini(data) {
       reply: clean(obj.reply, 2000),
       correction: clean(obj.correction, 1000),
       tip: clean(obj.tip, 500),
+      hints: Array.isArray(obj.hints) ? obj.hints.slice(0, 3).map((h) => clean(h, 120)).filter(Boolean) : [],
     };
   } catch {
-    return { reply: clean(text, 2000), correction: "", tip: "" };
+    return { reply: clean(text, 2000), correction: "", tip: "", hints: [] };
   }
 }
 
@@ -166,7 +172,7 @@ async function handleChat(request, env) {
     const { data } = await callGemini(env, body);
     const result = parseGemini(data);
     if (!result || !result.reply) {
-      return json({ reply: "Sorry, I can't answer that. Let's keep practising English — can you tell me about your day?", correction: "", tip: "" });
+      return json({ reply: "Sorry, I can't answer that. Let's keep practising English — can you tell me about your day?", correction: "", tip: "", hints: [] });
     }
     return json(result);
   } catch (err) {

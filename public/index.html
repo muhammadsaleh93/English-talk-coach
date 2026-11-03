@@ -5,53 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>English Talk Coach</title>
   <meta name="description" content="Practise speaking English with a friendly AI coach — beginner to advanced.">
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <button id="backBtn" class="icon-btn hidden" aria-label="Back">←</button>
-    <h1 id="title">English Talk Coach</h1>
-    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙️</button>
-  </header>
-
-  <!-- HOME -->
+  <!-- ============ HOME ============ -->
   <main id="homeView" class="view">
-    <section class="hero">
-      <p class="hello">Speak English with confidence 🎯</p>
-      <p class="sub">Choose your level and a topic. Your AI coach talks with you and gently corrects your mistakes.</p>
-      <div class="stats" id="stats"></div>
+    <header class="home-head">
+      <div>
+        <p class="greet" id="greet">Hello 👋</p>
+        <h1 class="headline">Let's practise English today</h1>
+      </div>
+      <img src="/coach.svg" alt="" class="avatar lg">
+    </header>
+
+    <section class="streak-card">
+      <div class="streak-left">
+        <div class="flame" id="flame">🔥</div>
+        <div>
+          <div class="streak-num"><span id="streakNum">0</span> day streak</div>
+          <div class="streak-sub" id="streakSub">Practise today to start your streak</div>
+        </div>
+      </div>
+      <div class="ring" id="goalRing" style="--p:0">
+        <span id="goalText">0/10</span>
+      </div>
     </section>
 
-    <nav class="levels" role="tablist">
-      <button class="level-tab" data-level="beginner" role="tab">🌱 Beginner</button>
-      <button class="level-tab" data-level="intermediate" role="tab">🌿 Intermediate</button>
-      <button class="level-tab" data-level="advanced" role="tab">🌳 Advanced</button>
-    </nav>
+    <button class="talk-cta" id="freeTalkBtn">
+      <div class="cta-text">
+        <span class="cta-label">Free talk</span>
+        <span class="cta-title">Talk about anything</span>
+        <span class="cta-sub">Your coach is ready to listen</span>
+      </div>
+      <span class="cta-mic">🎙️</span>
+    </button>
 
-    <div id="topicGrid" class="topic-grid"></div>
+    <div class="section-head">
+      <h2>Lessons</h2>
+      <span class="level-progress" id="levelProgress"></span>
+    </div>
+
+    <div class="segmented" role="tablist">
+      <button class="seg" data-level="beginner" role="tab">Beginner</button>
+      <button class="seg" data-level="intermediate" role="tab">Intermediate</button>
+      <button class="seg" data-level="advanced" role="tab">Advanced</button>
+      <span class="seg-pill" aria-hidden="true"></span>
+    </div>
+
+    <div class="bar"><span id="levelBar"></span></div>
+
+    <div id="topicList" class="topic-list"></div>
   </main>
 
-  <!-- CHAT -->
-  <main id="chatView" class="view hidden">
-    <div class="chat-goal" id="chatGoal"></div>
-    <div id="messages" class="messages" aria-live="polite"></div>
-    <form id="composer" class="composer">
-      <button type="button" id="micBtn" class="mic-btn" aria-label="Speak">🎤</button>
-      <input id="input" type="text" autocomplete="off" placeholder="Type or tap 🎤 to speak…" maxlength="600">
-      <button type="submit" id="sendBtn" class="send-btn" aria-label="Send">➤</button>
-    </form>
+  <!-- ============ PROGRESS ============ -->
+  <main id="progressView" class="view hidden">
+    <header class="page-head"><h1>Your progress</h1></header>
+    <div class="stat-grid" id="statGrid"></div>
+    <section class="panel">
+      <h3>Levels</h3>
+      <div id="levelBars"></div>
+    </section>
+    <section class="panel">
+      <h3>Review your mistakes</h3>
+      <div id="reviewList" class="review-list"></div>
+    </section>
   </main>
 
-  <!-- SETTINGS -->
+  <!-- ============ SETTINGS ============ -->
   <main id="settingsView" class="view hidden">
-    <section class="card">
-      <h2>Settings</h2>
+    <header class="page-head"><h1>Settings</h1></header>
+    <section class="panel">
       <label class="row">
-        <span>Explain my mistakes in</span>
+        <span><b>Explain mistakes in</b><small>Language of the tips under corrections</small></span>
         <select id="helperLang">
           <option value="en">English</option>
           <option value="ur">اردو Urdu</option>
@@ -61,20 +94,82 @@
         </select>
       </label>
       <label class="row">
-        <span>Read coach replies aloud</span>
-        <input id="autoSpeak" type="checkbox">
+        <span><b>Read replies aloud</b><small>The coach speaks every answer</small></span>
+        <span class="switch"><input id="autoSpeak" type="checkbox"><i></i></span>
       </label>
       <label class="row">
-        <span>Voice speed</span>
+        <span><b>Show answer ideas</b><small>Example replies you can tap</small></span>
+        <span class="switch"><input id="showHints" type="checkbox"><i></i></span>
+      </label>
+      <label class="row col">
+        <span><b>Voice speed</b><small id="rateLabel">Normal</small></span>
         <input id="rate" type="range" min="0.6" max="1.2" step="0.1">
       </label>
-      <button id="resetBtn" class="ghost-btn">Reset my progress</button>
+      <label class="row">
+        <span><b>Daily goal</b><small>Messages per day</small></span>
+        <select id="dailyGoal">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="30">30</option>
+        </select>
+      </label>
     </section>
-    <section class="card small">
-      <p>English Talk Coach uses AI. AI answers can sometimes be wrong. Tap <b>⚑ Report</b> under any coach message to tell us about a bad answer.</p>
+    <section class="panel muted">
+      <p>English Talk Coach uses AI, and AI answers can sometimes be wrong. Tap <b>⚑</b> under any coach message to report a bad answer.</p>
       <p><a href="/privacy.html">Privacy policy</a></p>
+      <button id="resetBtn" class="danger-btn">Reset my progress</button>
     </section>
   </main>
+
+  <!-- ============ CHAT ============ -->
+  <main id="chatView" class="view chat hidden">
+    <header class="chat-head">
+      <button id="backBtn" class="icon-btn" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="coach-id">
+        <span class="avatar-wrap"><img src="/coach.svg" alt="" class="avatar"><i class="online"></i></span>
+        <div>
+          <div class="coach-name">Coach Sam</div>
+          <div class="coach-status" id="coachStatus">Online</div>
+        </div>
+      </div>
+      <button id="newChatBtn" class="icon-btn" aria-label="New conversation" title="New conversation">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </header>
+    <div class="goal-chip" id="chatGoal"></div>
+    <div id="messages" class="messages" aria-live="polite"></div>
+    <div id="hints" class="hints"></div>
+    <form id="composer" class="composer">
+      <div class="input-wrap">
+        <input id="input" type="text" autocomplete="off" placeholder="Type your answer…" maxlength="600">
+        <button type="submit" id="sendBtn" class="send-btn" aria-label="Send">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 12l16-8-6 16-2-7z" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <button type="button" id="micBtn" class="mic-btn" aria-label="Speak">
+        <svg viewBox="0 0 24 24" width="26" height="26"><rect x="9" y="3" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </form>
+  </main>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="tabbar" id="tabbar">
+    <button data-view="home" class="tab active">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="currentColor"/></svg>
+      <span>Learn</span>
+    </button>
+    <button data-view="progress" class="tab">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <span>Progress</span>
+    </button>
+    <button data-view="settings" class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
 
   <div id="toast" class="toast hidden"></div>
 

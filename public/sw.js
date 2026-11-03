@@ -1,6 +1,6 @@
 // Service worker: keeps the app screens available offline. AI chat always needs the internet.
-const CACHE = "etc-v3";
-const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/topics.js", "/config.js", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/privacy.html"];
+const CACHE = "etc-v4";
+const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/topics.js", "/config.js", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/privacy.html", "/coach.svg"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));

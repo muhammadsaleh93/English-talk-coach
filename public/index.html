@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <noscript><p style="padding:20px;font-family:sans-serif">Please turn on JavaScript to use English Talk Coach.</p></noscript>
   <!-- ============ WELCOME (first time) ============ -->
   <main id="welcomeView" class="view welcome hidden">
     <div class="welcome-step" id="welcome1">
@@ -93,6 +94,11 @@
       <div class="next-avatar" id="nextAvatar"></div>
     </button>
 
+    <section class="recs" id="recs">
+      <div class="section-head"><h2>Recommended for you</h2></div>
+      <div id="recList" class="rec-list"></div>
+    </section>
+
     <button class="free-card" id="freeTalkBtn">
       <span class="free-ic">🎙️</span>
       <span><b>Free talk</b><small>Talk about anything with <span class="tutor-name"></span></small></span>
@@ -142,9 +148,44 @@
     </section>
   </main>
 
+  <!-- ============ PRACTICE ============ -->
+  <main id="practiceView" class="view hidden">
+    <h1 class="page-title">Practice</h1>
+
+    <section class="challenge-card" id="challengeCard">
+      <div class="ch-top"><span class="ch-badge">🏅 Daily challenge</span><span class="ch-date" id="chDate"></span></div>
+      <div id="chBody"><div class="skeleton line w70"></div><div class="skeleton line"></div><div class="skeleton line w50"></div></div>
+    </section>
+
+    <div class="section-head"><h2>Today's words</h2><span id="wordsLearned"></span></div>
+    <div class="flash-row" id="flashRow">
+      <div class="flash skeleton-card"></div><div class="flash skeleton-card"></div>
+    </div>
+
+    <div class="section-head"><h2>Practice tools</h2></div>
+    <div class="tool-grid">
+      <button class="tool" id="quizBtn"><span class="tool-ic" style="background:#dbe7ff">🧠</span><b>Daily quiz</b><small id="quizSub">5 questions</small></button>
+      <button class="tool" id="mistakeQuizBtn"><span class="tool-ic" style="background:#ffe8d6">✏️</span><b>Mistakes quiz</b><small id="mistakeSub">From your corrections</small></button>
+      <button class="tool" id="pronBtn"><span class="tool-ic" style="background:#d7f7e3">🗣️</span><b>Pronunciation</b><small id="pronSub">Say it, get a score</small></button>
+      <button class="tool" id="jobBtn"><span class="tool-ic" style="background:#ece4ff">💼</span><b>Job interview</b><small>Practise for your job</small></button>
+    </div>
+  </main>
+
+  <!-- ============ ACTIVITY (quiz / pronunciation) ============ -->
+  <main id="activityView" class="view activity hidden">
+    <header class="act-head">
+      <button class="icon-btn" id="actBack" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+      <div class="act-progress"><span id="actBar"></span></div>
+      <span class="act-count" id="actCount"></span>
+    </header>
+    <div id="actBody" class="act-body"></div>
+  </main>
+
   <!-- ============ SETTINGS ============ -->
   <main id="settingsView" class="view hidden">
-    <h1 class="page-title">Settings</h1>
+    <h1 class="page-title">Profile & settings</h1>
     <section class="card list">
       <label class="row">
         <span><b>Your name</b></span>
@@ -185,6 +226,10 @@
     <section class="card muted">
       <p>English Talk Coach uses AI, and AI answers can sometimes be wrong. Tap <b>⚑</b> under any message from your tutor to report it.</p>
       <p><a href="/privacy.html">Privacy policy</a></p>
+      <div class="backup-row">
+        <button id="backupBtn" class="pill-btn">⬇️ Save backup</button>
+        <label class="pill-btn file-pill">⬆️ Restore<input id="restoreInput" type="file" accept="application/json,.json" hidden></label>
+      </div>
       <button id="resetBtn" class="danger-btn">Reset my progress</button>
     </section>
   </main>
@@ -254,18 +299,41 @@
     </div>
   </div>
 
+  <!-- ============ JOB INTERVIEW PICKER ============ -->
+  <div class="sheet-backdrop hidden" id="jobSheet">
+    <div class="sheet" role="dialog" aria-modal="true">
+      <button class="sheet-close" id="jobClose" aria-label="Close">✕</button>
+      <div class="sheet-icon">💼</div>
+      <h3 class="sheet-title">Job interview practice</h3>
+      <p class="sheet-sub">Choose the job you want. <span class="tutor-name"></span> will interview you like a real HR manager.</p>
+      <div class="job-grid" id="jobGrid"></div>
+      <form class="job-custom" id="jobForm">
+        <input id="jobInput" type="text" maxlength="40" placeholder="Or type any job…">
+        <button class="pill-btn blue" type="submit">Start</button>
+      </form>
+    </div>
+  </div>
+
   <!-- ============ BOTTOM NAV ============ -->
   <nav class="tabbar hidden" id="tabbar">
     <button data-view="home" class="tab active">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="currentColor"/></svg>
       <span>Learn</span>
     </button>
-    <button data-view="talk" class="tab talk-tab" aria-label="Talk">
+    <button data-view="practice" class="tab">
+      <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z" fill="currentColor"/></svg>
+      <span>Practice</span>
+    </button>
+    <button data-view="talk" class="tab talk-tab" aria-label="Free talk">
       <span class="talk-dot"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
     </button>
     <button data-view="progress" class="tab">
       <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
       <span>Progress</span>
+    </button>
+    <button data-view="settings" class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" fill="currentColor"/></svg>
+      <span>Profile</span>
     </button>
   </nav>
 

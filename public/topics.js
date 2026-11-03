@@ -28,3 +28,46 @@ window.TOPICS = {
 };
 
 window.FREE_TALK = { id: "free", icon: "💬", title: "Free talk", role: "a friendly conversation partner", goal: "talk about anything you like" };
+
+// Sentences for pronunciation practice (used together with your own corrected sentences).
+window.PRON_PHRASES = {
+  beginner: [
+    "Hello, my name is Ali.",
+    "I am from Pakistan.",
+    "I work every day.",
+    "Can I have some water, please?",
+    "How much is this?",
+    "Where is the bus station?",
+    "I like to drink tea in the morning.",
+    "Thank you very much.",
+  ],
+  intermediate: [
+    "I have been working here for three years.",
+    "Could you tell me more about the job?",
+    "I usually go to the gym after work.",
+    "What would you recommend for dinner?",
+    "I'm looking forward to meeting you.",
+    "I would like to book a room for two nights.",
+  ],
+  advanced: [
+    "I'd argue that remote work has both advantages and drawbacks.",
+    "Throughout my career, I've consistently exceeded my targets.",
+    "That's a valid point, but have you considered the long-term costs?",
+    "I'm particularly interested in sustainable technology.",
+    "Let me walk you through the main findings of our report.",
+  ],
+};
+
+// Jobs for interview practice.
+window.JOBS = [
+  { icon: "🔧", name: "Pipe fitter / technician" },
+  { icon: "🏗️", name: "Construction worker" },
+  { icon: "🚚", name: "Driver" },
+  { icon: "🛒", name: "Sales assistant" },
+  { icon: "🎧", name: "Customer service" },
+  { icon: "🏥", name: "Nurse" },
+  { icon: "👩‍🏫", name: "Teacher" },
+  { icon: "💻", name: "IT / software" },
+  { icon: "📐", name: "AutoCAD draftsman" },
+  { icon: "🏨", name: "Hotel receptionist" },
+];

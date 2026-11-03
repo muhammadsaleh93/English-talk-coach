@@ -64,3 +64,8 @@ jobs:
           echo "== chat test =="
           curl -sS -m 90 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" \
             -d '{"level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"Hi! What is your name?"},{"role":"me","text":"my name ali i from pakistan"}]}' || true
+          echo "== translate test =="
+          curl -sS -m 60 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" -d '{"mode":"translate","helperLang":"ur","text":"What do you like to do on weekends?"}' || true
+          echo "== summary test =="
+          curl -sS -m 60 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" \
+            -d '{"mode":"summary","level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"What is your name?"},{"role":"me","text":"my name ali i from pakistan"},{"role":"coach","text":"How long have you lived in Saudi Arabia?"},{"role":"me","text":"i am living here since two years"}]}' || true

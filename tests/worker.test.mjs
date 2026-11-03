@@ -89,3 +89,40 @@ test("other paths are served from static assets", async () => {
   const res = await worker.fetch(new Request("https://x.dev/"), { ASSETS: assets });
   assert.equal(await res.text(), "asset");
 });
+
+function mockGemini(obj) {
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, opts) => {
+    calls.push(JSON.parse(opts.body));
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] } }] }));
+  };
+  return { calls, restore: () => (globalThis.fetch = realFetch) };
+}
+
+test("translate mode returns translation", async () => {
+  const m = mockGemini({ translation: "آپ کا نام کیا ہے؟" });
+  try {
+    const req = new Request("https://x.dev/api/chat", { method: "POST", body: JSON.stringify({ mode: "translate", text: "What is your name?", helperLang: "ur" }) });
+    const res = await worker.fetch(req, { GEMINI_API_KEY: "k", ASSETS: assets });
+    assert.equal((await res.json()).translation, "آپ کا نام کیا ہے؟");
+    assert.match(m.calls[0].systemInstruction.parts[0].text, /Urdu/);
+  } finally {
+    m.restore();
+  }
+});
+
+test("summary mode clamps scores", async () => {
+  const m = mockGemini({ takeaway: "Using 'is'", explanation: "x", praise: "Good!", grammar: 140, fluency: "70", vocabulary: -5 });
+  try {
+    const req = new Request("https://x.dev/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ mode: "summary", level: "beginner", history: [{ role: "me", text: "my name ali" }] }),
+    });
+    const out = await (await worker.fetch(req, { GEMINI_API_KEY: "k", ASSETS: assets })).json();
+    assert.deepEqual([out.grammar, out.fluency, out.vocabulary], [100, 70, 0]);
+    assert.equal(out.takeaway, "Using 'is'");
+  } finally {
+    m.restore();
+  }
+});

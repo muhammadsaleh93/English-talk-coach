@@ -74,6 +74,7 @@ export function buildSystemPrompt({ level, topic, role, goal, helperLang }) {
     "- Stay in the role-play and on the topic. Speak ONLY English in 'reply'.",
     "- Keep 'reply' short (1-3 sentences for beginners, up to 5 for advanced) so it feels like a real spoken conversation.",
     "- Never write the correction inside 'reply'. Put corrections only in 'correction' and 'tip'.",
+    "- In 'correction', change as few words as possible: keep the learner's own words and order where they are correct, so the learner can see exactly what changed.",
     "- Ignore small punctuation or capital-letter issues; voice input has no punctuation.",
     `- Write 'tip' in ${helper}. Keep it to one short sentence.`,
     "- Keep everything friendly, respectful and suitable for all ages. Politely refuse anything harmful, sexual, hateful or dangerous and steer back to English practice.",
@@ -146,35 +147,113 @@ export function parseGemini(data) {
   }
 }
 
+const TRANSLATE_SCHEMA = {
+  type: "OBJECT",
+  properties: { translation: { type: "STRING" } },
+  required: ["translation"],
+};
+
+const SUMMARY_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    takeaway: { type: "STRING", description: "Title of the ONE most useful grammar or vocabulary point for this learner, in English, max 6 words. Example: 'Past simple vs present perfect'." },
+    explanation: { type: "STRING", description: "1-2 short sentences explaining the takeaway with one example, written in the helper language (examples stay in English)." },
+    grammar: { type: "INTEGER", description: "0-100 score for grammar accuracy of the learner's messages." },
+    fluency: { type: "INTEGER", description: "0-100 score for fluency: sentence length, natural flow, completeness of ideas." },
+    vocabulary: { type: "INTEGER", description: "0-100 score for range and accuracy of vocabulary for their level." },
+    praise: { type: "STRING", description: "One short encouraging sentence in English about what the learner did well." },
+  },
+  required: ["takeaway", "explanation", "grammar", "fluency", "vocabulary", "praise"],
+};
+
+const clampScore = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+
+function parseJsonReply(data) {
+  const cand = data && data.candidates && data.candidates[0];
+  const text = cand && cand.content && cand.content.parts ? cand.content.parts.map((p) => p.text || "").join("") : "";
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function chatMode(env, input) {
+  const { data } = await callGemini(env, {
+    systemInstruction: { parts: [{ text: buildSystemPrompt(input) }] },
+    contents: buildContents(input.history),
+    generationConfig: { temperature: 0.8, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
+  });
+  const result = parseGemini(data);
+  if (!result || !result.reply) {
+    return { reply: "Sorry, I can't answer that. Let's keep practising English — can you tell me about your day?", correction: "", tip: "", hints: [] };
+  }
+  return result;
+}
+
+async function translateMode(env, input) {
+  const lang = HELPER_LANGS[input.helperLang] || HELPER_LANGS.ur;
+  const text = clean(input.text, 1500);
+  if (!text) return { translation: "" };
+  const { data } = await callGemini(env, {
+    systemInstruction: { parts: [{ text: `Translate the user's English text into natural, simple ${lang} for a language learner. Return only the translation.` }] },
+    contents: [{ role: "user", parts: [{ text }] }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 1024, responseMimeType: "application/json", responseSchema: TRANSLATE_SCHEMA },
+  });
+  const obj = parseJsonReply(data);
+  return { translation: clean(obj && obj.translation, 2000) };
+}
+
+async function summaryMode(env, input) {
+  const helper = HELPER_LANGS[input.helperLang] || HELPER_LANGS.en;
+  const levelText = LEVEL_GUIDE[input.level] || LEVEL_GUIDE.beginner;
+  const turns = (Array.isArray(input.history) ? input.history.slice(-30) : [])
+    .map((t) => (t && t.role === "coach" ? "Coach: " : "Learner: ") + clean(t && t.text))
+    .join("\n");
+  const { data } = await callGemini(env, {
+    systemInstruction: {
+      parts: [
+        {
+          text: [
+            "You are an English teacher reviewing a practice conversation between an AI coach and a learner.",
+            levelText,
+            `Topic: ${clean(input.topic, 120) || "Free conversation"}.`,
+            "Judge ONLY the learner's lines, fairly for their level (a good beginner can score high). Voice input has no punctuation: do not penalise punctuation or capitals.",
+            `Write 'explanation' in ${helper}.`,
+          ].join("\n"),
+        },
+      ],
+    },
+    contents: [{ role: "user", parts: [{ text: turns || "(empty)" }] }],
+    generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: "application/json", responseSchema: SUMMARY_SCHEMA },
+  });
+  const o = parseJsonReply(data) || {};
+  return {
+    takeaway: clean(o.takeaway, 120),
+    explanation: clean(o.explanation, 600),
+    praise: clean(o.praise, 300),
+    grammar: clampScore(o.grammar),
+    fluency: clampScore(o.fluency),
+    vocabulary: clampScore(o.vocabulary),
+  };
+}
+
 async function handleChat(request, env) {
   if (request.method !== "POST") return json({ error: "Use POST" }, 405);
   if (!env.GEMINI_API_KEY) return json({ error: "The server is missing its AI key. Please try again later." }, 500);
 
   let input;
   try {
-    input = await request.json();
+    input = (await request.json()) || {};
   } catch {
     return json({ error: "Bad request" }, 400);
   }
 
-  const body = {
-    systemInstruction: { parts: [{ text: buildSystemPrompt(input || {}) }] },
-    contents: buildContents(input && input.history),
-    generationConfig: {
-      temperature: 0.8,
-      maxOutputTokens: 2048,
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA,
-    },
-  };
-
   try {
-    const { data } = await callGemini(env, body);
-    const result = parseGemini(data);
-    if (!result || !result.reply) {
-      return json({ reply: "Sorry, I can't answer that. Let's keep practising English — can you tell me about your day?", correction: "", tip: "", hints: [] });
-    }
-    return json(result);
+    if (input.mode === "translate") return json(await translateMode(env, input));
+    if (input.mode === "summary") return json(await summaryMode(env, input));
+    return json(await chatMode(env, input));
   } catch (err) {
     const msg = String(err && err.message);
     if (/^timeout/i.test(msg)) {

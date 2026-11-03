@@ -4,101 +4,168 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>English Talk Coach</title>
-  <meta name="description" content="Practise speaking English with a friendly AI coach — beginner to advanced.">
-  <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Speak English with confidence. Practise real conversations with your AI tutor and get instant feedback.">
+  <meta name="theme-color" content="#f3f6fc">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <!-- ============ HOME ============ -->
-  <main id="homeView" class="view">
-    <header class="home-head">
-      <div>
-        <p class="greet" id="greet">Hello 👋</p>
-        <h1 class="headline">Let's practise English today</h1>
+  <!-- ============ WELCOME (first time) ============ -->
+  <main id="welcomeView" class="view welcome hidden">
+    <div class="welcome-step" id="welcome1">
+      <h1 class="big-title">Be confident.<br><span>Speak English</span><br>with AI</h1>
+      <div class="hero-stage">
+        <div class="hero-avatar" id="heroAvatar"></div>
+        <div class="demo-bubble wrong">I <mark class="bad">am living</mark> in Lahore <mark class="bad">since</mark> 5 years</div>
+        <div class="demo-bubble right"><em>It's better to say:</em><br>I <mark class="good">have been</mark> living in Lahore <mark class="good">for</mark> 5 years</div>
       </div>
-      <img src="/coach.svg" alt="" class="avatar lg">
-    </header>
+      <ul class="perks">
+        <li>🎙️ Real conversations with your AI tutor</li>
+        <li>✨ Instant grammar feedback</li>
+        <li>📈 Track your skills every week</li>
+      </ul>
+      <button class="primary-btn" id="welcomeNext">Get started</button>
+    </div>
 
-    <section class="streak-card">
-      <div class="streak-left">
-        <div class="flame" id="flame">🔥</div>
-        <div>
-          <div class="streak-num"><span id="streakNum">0</span> day streak</div>
-          <div class="streak-sub" id="streakSub">Practise today to start your streak</div>
+    <form class="welcome-step hidden" id="welcome2">
+      <h1 class="step-title">Let's set up your coach</h1>
+      <label class="field">
+        <span>What's your name?</span>
+        <input id="nameInput" type="text" maxlength="30" placeholder="Your name" autocomplete="given-name" required>
+      </label>
+      <label class="field">
+        <span>Your language (for tips and translations)</span>
+        <select id="langInput">
+          <option value="ur">اردو Urdu</option>
+          <option value="hi">हिन्दी Hindi</option>
+          <option value="ar">العربية Arabic</option>
+          <option value="bn">বাংলা Bengali</option>
+          <option value="en">English only</option>
+        </select>
+      </label>
+      <div class="field">
+        <span>Your English level</span>
+        <div class="level-pick" id="levelPick">
+          <button type="button" data-level="beginner"><b>🌱 Beginner</b><small>I know simple words and sentences</small></button>
+          <button type="button" data-level="intermediate"><b>🌿 Intermediate</b><small>I can talk about everyday topics</small></button>
+          <button type="button" data-level="advanced"><b>🌳 Advanced</b><small>I want to sound fluent and natural</small></button>
         </div>
       </div>
-      <div class="ring" id="goalRing" style="--p:0">
-        <span id="goalText">0/10</span>
+      <button class="primary-btn" type="submit">Start learning</button>
+    </form>
+  </main>
+
+  <!-- ============ HOME ============ -->
+  <main id="homeView" class="view hidden">
+    <header class="profile">
+      <div class="profile-pic" id="profilePic">A</div>
+      <div class="profile-text">
+        <div class="profile-name" id="profileName">Learner</div>
+        <div class="profile-meta"><span id="profileLessons">🏆 0 lessons</span><span id="profileLevel">🌱 Beginner</span></div>
       </div>
+      <button class="icon-btn" data-go="settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <section class="tiles">
+      <div class="tile streak"><span class="tile-ic">🔥</span><b id="tStreak">0</b><small>Streak</small></div>
+      <div class="tile gems"><span class="tile-ic">💎</span><b id="tGems">0</b><small>Gems</small></div>
+      <div class="tile stars"><span class="tile-ic">⭐</span><b id="tStars">0</b><small>Total stars</small></div>
     </section>
 
-    <button class="talk-cta" id="freeTalkBtn">
-      <div class="cta-text">
-        <span class="cta-label">Free talk</span>
-        <span class="cta-title">Talk about anything</span>
-        <span class="cta-sub">Your coach is ready to listen</span>
+    <section class="goal-strip">
+      <div class="goal-text"><b>Daily goal</b><span id="goalSub">0 / 10 messages</span></div>
+      <div class="goal-bar"><span id="goalBar"></span></div>
+    </section>
+
+    <button class="next-card" id="nextCard">
+      <div class="next-left">
+        <span class="next-label" id="nextLabel">Next lesson</span>
+        <span class="next-title" id="nextTitle">Introduce yourself</span>
+        <span class="next-btn">Start now →</span>
       </div>
-      <span class="cta-mic">🎙️</span>
+      <div class="next-avatar" id="nextAvatar"></div>
+    </button>
+
+    <button class="free-card" id="freeTalkBtn">
+      <span class="free-ic">🎙️</span>
+      <span><b>Free talk</b><small>Talk about anything with <span class="tutor-name"></span></small></span>
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
 
     <div class="section-head">
       <h2>Lessons</h2>
-      <span class="level-progress" id="levelProgress"></span>
+      <span id="levelProgress"></span>
     </div>
-
     <div class="segmented" role="tablist">
       <button class="seg" data-level="beginner" role="tab">Beginner</button>
       <button class="seg" data-level="intermediate" role="tab">Intermediate</button>
       <button class="seg" data-level="advanced" role="tab">Advanced</button>
       <span class="seg-pill" aria-hidden="true"></span>
     </div>
-
-    <div class="bar"><span id="levelBar"></span></div>
-
     <div id="topicList" class="topic-list"></div>
   </main>
 
   <!-- ============ PROGRESS ============ -->
   <main id="progressView" class="view hidden">
-    <header class="page-head"><h1>Your progress</h1></header>
-    <div class="stat-grid" id="statGrid"></div>
-    <section class="panel">
-      <h3>Levels</h3>
-      <div id="levelBars"></div>
+    <h1 class="page-title">Reach your goals</h1>
+
+    <section class="skills-card">
+      <div class="skills-head"><b>My skills</b><span id="skillsNote">Last 7 days</span></div>
+      <div id="skillsBody"></div>
     </section>
-    <section class="panel">
-      <h3>Review your mistakes</h3>
+
+    <section class="card">
+      <div class="card-head"><span class="ic abc">ABC</span><b>Total words I used</b><span class="big-num" id="wordTotal">0</span></div>
+      <div class="chart" id="wordChart"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><span class="ic">📘</span><b>My new words today</b><span class="muted-num" id="todayWordsCount">0</span></div>
+      <div class="word-grid" id="todayWords"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><span class="ic">✏️</span><b>Review my mistakes</b></div>
       <div id="reviewList" class="review-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><span class="ic">📚</span><b>Lessons</b></div>
+      <div id="levelBars"></div>
     </section>
   </main>
 
   <!-- ============ SETTINGS ============ -->
   <main id="settingsView" class="view hidden">
-    <header class="page-head"><h1>Settings</h1></header>
-    <section class="panel">
+    <h1 class="page-title">Settings</h1>
+    <section class="card list">
       <label class="row">
-        <span><b>Explain mistakes in</b><small>Language of the tips under corrections</small></span>
+        <span><b>Your name</b></span>
+        <input id="nameSetting" type="text" maxlength="30" class="text-in">
+      </label>
+      <label class="row">
+        <span><b>Tips & translations</b><small>Your language</small></span>
         <select id="helperLang">
-          <option value="en">English</option>
           <option value="ur">اردو Urdu</option>
           <option value="hi">हिन्दी Hindi</option>
           <option value="ar">العربية Arabic</option>
           <option value="bn">বাংলা Bengali</option>
+          <option value="en">English only</option>
         </select>
       </label>
       <label class="row">
-        <span><b>Read replies aloud</b><small>The coach speaks every answer</small></span>
+        <span><b>Read replies aloud</b><small><span class="tutor-name"></span> speaks every answer</small></span>
         <span class="switch"><input id="autoSpeak" type="checkbox"><i></i></span>
       </label>
       <label class="row">
-        <span><b>Show answer ideas</b><small>Example replies you can tap</small></span>
+        <span><b>Answer ideas</b><small>Example replies you can tap</small></span>
         <span class="switch"><input id="showHints" type="checkbox"><i></i></span>
       </label>
       <label class="row col">
@@ -115,8 +182,8 @@
         </select>
       </label>
     </section>
-    <section class="panel muted">
-      <p>English Talk Coach uses AI, and AI answers can sometimes be wrong. Tap <b>⚑</b> under any coach message to report a bad answer.</p>
+    <section class="card muted">
+      <p>English Talk Coach uses AI, and AI answers can sometimes be wrong. Tap <b>⚑</b> under any message from your tutor to report it.</p>
       <p><a href="/privacy.html">Privacy policy</a></p>
       <button id="resetBtn" class="danger-btn">Reset my progress</button>
     </section>
@@ -124,29 +191,39 @@
 
   <!-- ============ CHAT ============ -->
   <main id="chatView" class="view chat hidden">
-    <header class="chat-head">
+    <header class="chat-top">
       <button id="backBtn" class="icon-btn" aria-label="Back">
         <svg viewBox="0 0 24 24" width="24" height="24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <div class="coach-id">
-        <span class="avatar-wrap"><img src="/coach.svg" alt="" class="avatar"><i class="online"></i></span>
-        <div>
-          <div class="coach-name">Coach Sam</div>
-          <div class="coach-status" id="coachStatus">Online</div>
-        </div>
+      <div class="chat-title">
+        <b id="chatTopic">Lesson</b>
+        <small id="chatGoal"></small>
       </div>
-      <button id="newChatBtn" class="icon-btn" aria-label="New conversation" title="New conversation">
+      <button id="newChatBtn" class="icon-btn" aria-label="New conversation">
         <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </header>
-    <div class="goal-chip" id="chatGoal"></div>
+
+    <section class="stage" id="stage">
+      <div class="stage-avatar" id="stageAvatar"></div>
+      <div class="stage-info">
+        <b class="tutor-name"></b>
+        <span class="stage-status" id="stageStatus"><i></i>Online</span>
+      </div>
+      <button class="stage-toggle" id="stageToggle" aria-label="Resize tutor">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </section>
+
     <div id="messages" class="messages" aria-live="polite"></div>
     <div id="hints" class="hints"></div>
+
     <form id="composer" class="composer">
+      <button type="button" class="tool-btn" id="hintBtn" aria-label="Answer ideas">💡</button>
       <div class="input-wrap">
-        <input id="input" type="text" autocomplete="off" placeholder="Type your answer…" maxlength="600">
+        <input id="input" type="text" autocomplete="off" placeholder="Type or tap the mic…" maxlength="600">
         <button type="submit" id="sendBtn" class="send-btn" aria-label="Send">
-          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 12l16-8-6 16-2-7z" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 12l16-8-6 16-2-7z" fill="currentColor"/></svg>
         </button>
       </div>
       <button type="button" id="micBtn" class="mic-btn" aria-label="Speak">
@@ -155,19 +232,40 @@
     </form>
   </main>
 
+  <!-- ============ FEEDBACK SHEET ============ -->
+  <div class="sheet-backdrop hidden" id="sheet">
+    <div class="sheet" role="dialog" aria-modal="true">
+      <button class="sheet-close" id="sheetClose" aria-label="Close">✕</button>
+      <div class="sheet-icon">🔍</div>
+      <div class="sheet-sec">
+        <div class="sheet-h"><b>My message</b><span class="dot bad">−</span></div>
+        <p class="sheet-text" id="sheetMine"></p>
+      </div>
+      <div class="sheet-sec">
+        <div class="sheet-h good"><b>Grammar fix</b><span class="dot ok">✓</span></div>
+        <p class="sheet-text" id="sheetFix"></p>
+        <p class="sheet-tip" id="sheetTip"></p>
+      </div>
+      <div class="sheet-actions">
+        <button id="sheetListen" class="pill-btn">🔊 Listen</button>
+        <button id="sheetPractice" class="pill-btn blue">🎙️ Say it again</button>
+      </div>
+      <div class="helpful">Was this helpful? <button data-h="up">👍</button><button data-h="down">👎</button></div>
+    </div>
+  </div>
+
   <!-- ============ BOTTOM NAV ============ -->
-  <nav class="tabbar" id="tabbar">
+  <nav class="tabbar hidden" id="tabbar">
     <button data-view="home" class="tab active">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="currentColor"/></svg>
       <span>Learn</span>
     </button>
+    <button data-view="talk" class="tab talk-tab" aria-label="Talk">
+      <span class="talk-dot"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+    </button>
     <button data-view="progress" class="tab">
       <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
       <span>Progress</span>
-    </button>
-    <button data-view="settings" class="tab">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      <span>Settings</span>
     </button>
   </nav>
 
@@ -175,6 +273,7 @@
 
   <script src="/config.js"></script>
   <script src="/topics.js"></script>
+  <script src="/tutor.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

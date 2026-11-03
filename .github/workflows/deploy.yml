@@ -51,21 +51,18 @@ jobs:
 
       - name: Smoke test the live app
         if: steps.check.outputs.ready == 'true'
-        continue-on-error: true
         run: |
           URL="https://english-talk-coach.muhammadsalehpk90.workers.dev"
           sleep 10
-          echo "== home page =="
-          curl -sS -m 30 -o /dev/null -w "%{http_code} %{time_total}s\n" "$URL/" || true
-          echo "== health =="
-          curl -sS -m 30 -w " (%{time_total}s)\n" "$URL/api/health" || true
-          echo "== gemini check =="
-          curl -sS -m 90 -w " (%{time_total}s)\n" "$URL/api/health?check=1" || true
-          echo "== chat test =="
-          curl -sS -m 90 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" \
-            -d '{"level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"Hi! What is your name?"},{"role":"me","text":"my name ali i from pakistan"}]}' || true
-          echo "== translate test =="
-          curl -sS -m 60 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" -d '{"mode":"translate","helperLang":"ur","text":"What do you like to do on weekends?"}' || true
-          echo "== summary test =="
-          curl -sS -m 60 -w " (%{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" \
-            -d '{"mode":"summary","level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"What is your name?"},{"role":"me","text":"my name ali i from pakistan"},{"role":"coach","text":"How long have you lived in Saudi Arabia?"},{"role":"me","text":"i am living here since two years"}]}' || true
+          fail=0
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/"); echo "home page: $code"; [ "$code" = 200 ] || fail=1
+          echo "health: $(curl -sS "$URL/api/health")"
+          echo "security headers:"; curl -sI "$URL/" | grep -iE "content-security-policy|x-frame-options|permissions-policy" || fail=1
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL/api/chat" -H "content-type: application/json" -H "origin: https://evil.example" -d '{}')
+          echo "foreign origin blocked: $code"; [ "$code" = 403 ] || fail=1
+          post() { curl -sS -m 60 -w " (%{http_code}, %{time_total}s)\n" -X POST "$URL/api/chat" -H "content-type: application/json" -H "origin: $URL" -d "$1"; }
+          echo "== chat =="; out=$(post '{"level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"Hi! What is your name?"},{"role":"me","text":"my name ali i from pakistan"}]}'); echo "$out"; echo "$out" | grep -q '"reply"' || fail=1
+          echo "== translate =="; out=$(post '{"mode":"translate","helperLang":"ar","text":"What do you like to do on weekends?"}'); echo "$out"; echo "$out" | grep -q '"translation"' || fail=1
+          echo "== summary =="; out=$(post '{"mode":"summary","level":"beginner","topic":"Introduce yourself","helperLang":"ur","history":[{"role":"coach","text":"How long have you lived in Saudi Arabia?"},{"role":"me","text":"i am living here since two years"}]}'); echo "$out"; echo "$out" | grep -q '"grammar"' || fail=1
+          echo "== daily pack =="; out=$(post '{"mode":"daily","level":"beginner","helperLang":"ur"}'); echo "$out" | head -c 1500; echo; echo "$out" | grep -q '"quiz"' || fail=1
+          exit $fail

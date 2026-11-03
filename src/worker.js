@@ -20,6 +20,8 @@ const HELPER_LANGS = {
 };
 
 const DEFAULT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+const TUTOR_NAME = "Sara";
+const VERSION = "2.0.0";
 
 const MAX_TURNS = 20;
 const MAX_CHARS = 800;
@@ -53,7 +55,12 @@ const RESPONSE_SCHEMA = {
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+    },
   });
 }
 
@@ -65,7 +72,7 @@ export function buildSystemPrompt({ level, topic, role, goal, helperLang }) {
   const levelText = LEVEL_GUIDE[level] || LEVEL_GUIDE.beginner;
   const helper = HELPER_LANGS[helperLang] || HELPER_LANGS.en;
   return [
-    "You are 'Coach', a friendly English conversation tutor inside the English Talk Coach app.",
+    `You are ${TUTOR_NAME}, a friendly, patient English conversation tutor inside the English Talk Coach app.`,
     levelText,
     `Conversation topic: ${clean(topic, 120) || "Free conversation"}.`,
     role ? `Your role in this role-play: ${clean(role, 200)}.` : "You are a friendly conversation partner.",
@@ -74,7 +81,8 @@ export function buildSystemPrompt({ level, topic, role, goal, helperLang }) {
     "- Stay in the role-play and on the topic. Speak ONLY English in 'reply'.",
     "- Keep 'reply' short (1-3 sentences for beginners, up to 5 for advanced) so it feels like a real spoken conversation.",
     "- Never write the correction inside 'reply'. Put corrections only in 'correction' and 'tip'.",
-    "- In 'correction', change as few words as possible: keep the learner's own words and order where they are correct, so the learner can see exactly what changed.",
+    "- Only correct REAL mistakes (grammar, wrong word, wrong word order, spelling). If the learner's message is already correct English (ignoring punctuation and capital letters), 'correction' MUST be an empty string.",
+    "- 'correction' must be perfect, natural English. Change as few words as possible: keep the learner's own words and order where they are correct, so the learner can see exactly what changed.",
     "- Ignore small punctuation or capital-letter issues; voice input has no punctuation.",
     `- Write 'tip' in ${helper}. Keep it to one short sentence.`,
     "- Keep everything friendly, respectful and suitable for all ages. Politely refuse anything harmful, sexual, hateful or dangerous and steer back to English practice.",
@@ -183,7 +191,7 @@ async function chatMode(env, input) {
   const { data } = await callGemini(env, {
     systemInstruction: { parts: [{ text: buildSystemPrompt(input) }] },
     contents: buildContents(input.history),
-    generationConfig: { temperature: 0.8, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
+    generationConfig: { temperature: 0.7, maxOutputTokens: 1024, responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
   });
   const result = parseGemini(data);
   if (!result || !result.reply) {
@@ -220,6 +228,7 @@ async function summaryMode(env, input) {
             levelText,
             `Topic: ${clean(input.topic, 120) || "Free conversation"}.`,
             "Judge ONLY the learner's lines, fairly for their level (a good beginner can score high). Voice input has no punctuation: do not penalise punctuation or capitals.",
+            "Every English example you write must be 100% grammatically correct, natural English.",
             `Write 'explanation' in ${helper}.`,
           ].join("\n"),
         },
@@ -239,57 +248,214 @@ async function summaryMode(env, input) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Daily pack: challenge + 5 words + 5-question quiz (one AI call per user per day)
+// ---------------------------------------------------------------------------
+const DAILY_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    challenge: {
+      type: "OBJECT",
+      properties: {
+        title: { type: "STRING", description: "Short fun title, max 6 words." },
+        task: { type: "STRING", description: "A speaking task the learner completes by talking to the tutor, in simple English, 1-2 sentences." },
+        example: { type: "STRING", description: "One example sentence the learner could say." },
+      },
+      required: ["title", "task", "example"],
+    },
+    words: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          word: { type: "STRING" },
+          meaning: { type: "STRING", description: "Simple English meaning." },
+          example: { type: "STRING", description: "Natural example sentence." },
+          translation: { type: "STRING", description: "Meaning in the helper language." },
+        },
+        required: ["word", "meaning", "example", "translation"],
+      },
+    },
+    quiz: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          q: { type: "STRING", description: "Question in English (fill-the-gap with ___ or choose the correct sentence)." },
+          options: { type: "ARRAY", items: { type: "STRING" } },
+          answer: { type: "INTEGER", description: "Index (0-3) of the correct option." },
+          explain: { type: "STRING", description: "One short explanation in the helper language." },
+        },
+        required: ["q", "options", "answer", "explain"],
+      },
+    },
+  },
+  required: ["challenge", "words", "quiz"],
+};
+
+export function validateDaily(o) {
+  if (!o || typeof o !== "object") return null;
+  const c = o.challenge || {};
+  const challenge = { title: clean(c.title, 80), task: clean(c.task, 300), example: clean(c.example, 200) };
+  const words = (Array.isArray(o.words) ? o.words : [])
+    .map((w) => ({ word: clean(w && w.word, 40), meaning: clean(w && w.meaning, 200), example: clean(w && w.example, 200), translation: clean(w && w.translation, 120) }))
+    .filter((w) => w.word && w.meaning)
+    .slice(0, 5);
+  const quiz = (Array.isArray(o.quiz) ? o.quiz : [])
+    .map((q) => {
+      const options = (Array.isArray(q && q.options) ? q.options : []).map((x) => clean(x, 120)).filter(Boolean).slice(0, 4);
+      const answer = Number.isInteger(q && q.answer) ? q.answer : -1;
+      return { q: clean(q && q.q, 240), options, answer, explain: clean(q && q.explain, 300) };
+    })
+    .filter((q) => q.q && q.options.length >= 2 && q.answer >= 0 && q.answer < q.options.length)
+    .slice(0, 5);
+  if (!challenge.task || words.length < 3 || quiz.length < 3) return null;
+  return { challenge, words, quiz };
+}
+
+async function dailyMode(env, input) {
+  const helper = HELPER_LANGS[input.helperLang] || HELPER_LANGS.en;
+  const levelText = LEVEL_GUIDE[input.level] || LEVEL_GUIDE.beginner;
+  const { data } = await callGemini(env, {
+    systemInstruction: {
+      parts: [
+        {
+          text: [
+            "You create a short daily English practice pack for a language learning app used mostly by South Asian and Arab adults.",
+            levelText,
+            `Today's date is ${input.date}; use it to vary the theme (daily life, work, travel, shopping, health, family, technology, food...).`,
+            "Return: 1 speaking challenge, exactly 5 useful words for this level, and exactly 5 multiple-choice quiz questions with 4 options each, mixing grammar and today's words.",
+            `Write 'translation' and 'explain' in ${helper}. Everything else in English.`,
+            "All English must be 100% correct. Exactly one option is correct. Keep everything friendly and suitable for all ages.",
+          ].join("\n"),
+        },
+      ],
+    },
+    contents: [{ role: "user", parts: [{ text: "Create today's pack." }] }],
+    generationConfig: { temperature: 0.9, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: DAILY_SCHEMA },
+  });
+  const pack = validateDaily(parseJsonReply(data));
+  if (!pack) throw new Error("bad-output daily pack");
+  return pack;
+}
+
+// ---------------------------------------------------------------------------
+// Security: input validation, origin check, rate limiting
+// ---------------------------------------------------------------------------
+const MODES = ["chat", "translate", "summary", "daily"];
+const LEVELS = Object.keys(LEVEL_GUIDE);
+const MAX_BODY_BYTES = 24 * 1024;
+
+export function validateInput(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "Bad request" };
+  const mode = raw.mode === undefined ? "chat" : raw.mode;
+  if (!MODES.includes(mode)) return { error: "Unknown mode" };
+  const level = LEVELS.includes(raw.level) ? raw.level : "beginner";
+  const helperLang = Object.prototype.hasOwnProperty.call(HELPER_LANGS, raw.helperLang) ? raw.helperLang : "en";
+  const history = [];
+  if (raw.history !== undefined) {
+    if (!Array.isArray(raw.history) || raw.history.length > 60) return { error: "Bad history" };
+    for (const t of raw.history.slice(-30)) {
+      if (!t || typeof t !== "object" || (t.role !== "coach" && t.role !== "me")) return { error: "Bad history" };
+      history.push({ role: t.role, text: clean(t.text, MAX_CHARS) });
+    }
+  }
+  const out = { mode, level, helperLang, history, topic: clean(raw.topic, 120), role: clean(raw.role, 300), goal: clean(raw.goal, 300) };
+  if (mode === "translate") {
+    out.text = clean(raw.text, 1500);
+    if (!out.text) return { error: "Nothing to translate" };
+    if (helperLang === "en") return { error: "Choose a language to translate into" };
+  }
+  if (mode === "summary" && !history.some((t) => t.role === "me")) return { error: "Nothing to review yet" };
+  if (mode === "daily") {
+    const today = new Date();
+    const ok = [-1, 0, 1].map((d) => new Date(today.getTime() + d * 864e5).toISOString().slice(0, 10));
+    out.date = ok.includes(raw.date) ? raw.date : ok[1];
+  }
+  return { value: out };
+}
+
+export function originAllowed(request, env) {
+  const self = new URL(request.url).origin;
+  const allowed = [self, ...String(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean)];
+  const origin = request.headers.get("origin");
+  if (!origin || !allowed.includes(origin)) return false;
+  const site = request.headers.get("sec-fetch-site");
+  return !site || site === "same-origin" || allowed.length > 1;
+}
+
+// Per-IP limits. Uses Cloudflare's Rate Limiting binding when configured,
+// plus an in-memory fallback (per server instance) so limits always apply.
+const memoryHits = new Map();
+export function memoryLimit(key, limit, windowMs, now = Date.now()) {
+  const list = (memoryHits.get(key) || []).filter((t) => now - t < windowMs);
+  if (list.length >= limit) {
+    memoryHits.set(key, list);
+    return false;
+  }
+  list.push(now);
+  memoryHits.set(key, list);
+  if (memoryHits.size > 5000) memoryHits.delete(memoryHits.keys().next().value);
+  return true;
+}
+const COST = { chat: 1, translate: 1, summary: 3, daily: 5 };
+
+async function rateLimited(request, env, mode) {
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  if (env.RL_AI && typeof env.RL_AI.limit === "function") {
+    try {
+      const { success } = await env.RL_AI.limit({ key: ip });
+      if (!success) return true;
+    } catch (e) {
+      console.error("rate limit binding error", String(e));
+    }
+  }
+  // 30 "points" per minute and 400 per hour per IP (daily pack = 5 points, summary = 3).
+  const cost = COST[mode] || 1;
+  for (let i = 0; i < cost; i++) {
+    if (!memoryLimit("m:" + ip, 30, 60_000) || !memoryLimit("h:" + ip, 400, 3_600_000)) return true;
+  }
+  return false;
+}
+
 async function handleChat(request, env) {
   if (request.method !== "POST") return json({ error: "Use POST" }, 405);
+  if (!originAllowed(request, env)) return json({ error: "Forbidden" }, 403);
+  if (!(request.headers.get("content-type") || "").includes("application/json")) return json({ error: "Use JSON" }, 415);
+  const len = Number(request.headers.get("content-length") || 0);
+  if (len > MAX_BODY_BYTES) return json({ error: "Message too long" }, 413);
   if (!env.GEMINI_API_KEY) return json({ error: "The server is missing its AI key. Please try again later." }, 500);
 
-  let input;
+  let raw;
   try {
-    input = (await request.json()) || {};
+    const text = await request.text();
+    if (text.length > MAX_BODY_BYTES) return json({ error: "Message too long" }, 413);
+    raw = JSON.parse(text);
   } catch {
     return json({ error: "Bad request" }, 400);
+  }
+  const { value: input, error } = validateInput(raw);
+  if (error) return json({ error }, 400);
+  if (await rateLimited(request, env, input.mode)) {
+    return json({ error: "You're sending messages very fast. Please wait a minute and try again." }, 429);
   }
 
   try {
     if (input.mode === "translate") return json(await translateMode(env, input));
     if (input.mode === "summary") return json(await summaryMode(env, input));
+    if (input.mode === "daily") return json(await dailyMode(env, input));
     return json(await chatMode(env, input));
   } catch (err) {
     const msg = String(err && err.message);
-    if (/^timeout/i.test(msg)) {
-      return json({ error: "The coach took too long to answer. Please try again.", detail: msg.slice(0, 200) }, 504);
-    }
-    if (msg.startsWith("429")) {
-      return json({ error: "The coach is busy right now. Please wait a minute and try again." }, 429);
-    }
-    console.error("Gemini error:", msg);
-    return json({ error: "The coach could not answer. Please try again.", detail: msg.slice(0, 300) }, 502);
+    console.error("AI error:", input.mode, msg.slice(0, 500));
+    if (/^timeout/i.test(msg)) return json({ error: "The tutor took too long to answer. Please try again.", detail: "timeout" }, 504);
+    if (msg.startsWith("429")) return json({ error: "The tutor is busy right now. Please wait a minute and try again.", detail: "quota" }, 503);
+    return json({ error: "The tutor could not answer. Please try again.", detail: "upstream " + msg.slice(0, 3) }, 502);
   }
 }
 
-// Diagnostic: /api/health?check shows whether Gemini answers (never shows the key).
-async function health(env, check) {
-  const out = { ok: true, ai: Boolean(env.GEMINI_API_KEY) };
-  if (!check || !env.GEMINI_API_KEY) return json(out);
-  const models = env.GEMINI_MODEL ? [env.GEMINI_MODEL, ...DEFAULT_MODELS] : DEFAULT_MODELS;
-  out.models = {};
-  for (const model of [...new Set(models)]) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "Say hi" }] }], generationConfig: { maxOutputTokens: 256 } }),
-          signal: AbortSignal.timeout(20000),
-        }
-      );
-      out.models[model] = res.ok ? "OK" : `${res.status} ${(await res.text()).slice(0, 300)}`;
-    } catch (e) {
-      out.models[model] = "fetch failed: " + String(e && e.message);
-    }
-  }
-  return json(out);
+function health(env) {
+  return json({ ok: true, ai: Boolean(env.GEMINI_API_KEY), version: VERSION });
 }
 
 function assetLinks(env) {
@@ -310,7 +476,8 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/chat") return handleChat(request, env);
-    if (url.pathname === "/api/health") return health(env, url.searchParams.has("check"));
+    if (url.pathname === "/api/health") return health(env);
+    if (url.pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);
     if (url.pathname === "/.well-known/assetlinks.json") return assetLinks(env);
     return env.ASSETS.fetch(request);
   },

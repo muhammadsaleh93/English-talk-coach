@@ -3,16 +3,29 @@
   "name": "english-talk-coach",
   "main": "src/worker.js",
   "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/.well-known/*"]
   },
+  // Per-IP limit for AI requests (Cloudflare Rate Limiting binding). The worker also has a built-in fallback limit.
+  "ratelimits": [
+    {
+      "name": "RL_AI",
+      "namespace_id": "1001",
+      "simple": { "limit": 25, "period": 60 }
+    }
+  ],
+  // Keep logs so errors can be checked in the Cloudflare dashboard (Workers → english-talk-coach → Logs).
+  "observability": { "enabled": true },
   "vars": {
     // Android app details for the Play Store (Trusted Web Activity).
     "ANDROID_PACKAGE": "com.muhammadsaleh.englishtalkcoach",
     // Paste the SHA-256 fingerprint(s) from PWABuilder / Play Console here, separated by commas.
     "ANDROID_SHA256": ""
-    // Optional: "GEMINI_MODEL": "gemini-2.5-flash"
+    // Optional: "GEMINI_MODEL": "gemini-3.8-flash",
+    // Optional: "ALLOWED_ORIGINS": "https://your-custom-domain.com"
   }
 }
